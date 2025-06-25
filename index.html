@@ -53,22 +53,54 @@
 </div>
 <div id="message"></div>
 <button id="reset">リセット</button>
+<label style="margin-left: 10px;">
+  <input type="checkbox" id="cpu-toggle"> CPUと対戦する
+</label>
 
 <script>
   const cells = document.querySelectorAll('.cell');
   const message = document.getElementById('message');
+  const cpuToggle = document.getElementById('cpu-toggle');
   const board = Array(9).fill(null);
   let current = '○';
   let gameOver = false;
+  let vsCPU = false;
 
   cells.forEach(cell => cell.addEventListener('click', handleClick));
   document.getElementById('reset').addEventListener('click', resetGame);
+  cpuToggle.addEventListener('change', e => {
+    vsCPU = e.target.checked;
+    if (vsCPU && current === '×' && !gameOver) {
+      setTimeout(cpuMove, 300);
+    }
+  });
 
   function handleClick(e) {
     const index = Number(e.target.dataset.index);
     if (board[index] || gameOver) return;
     board[index] = current;
     e.target.textContent = current;
+    if (checkWin()) {
+      message.textContent = `${current}の勝ち`;
+      gameOver = true;
+    } else if (board.every(v => v)) {
+      message.textContent = '引き分け';
+      gameOver = true;
+    } else {
+      current = current === '○' ? '×' : '○';
+      if (vsCPU && current === '×') {
+        setTimeout(cpuMove, 300);
+      }
+    }
+  }
+
+  function cpuMove() {
+    if (gameOver) return;
+    const empty = board.map((v, i) => v ? null : i).filter(i => i !== null);
+    if (empty.length === 0) return;
+    const index = empty[Math.floor(Math.random() * empty.length)];
+    board[index] = current;
+    cells[index].textContent = current;
     if (checkWin()) {
       message.textContent = `${current}の勝ち`;
       gameOver = true;
