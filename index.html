@@ -2,218 +2,100 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Breakout Game</title>
+<title>○×ゲーム</title>
 <style>
-  body { margin: 0; background: #000; color: #fff; font-family: sans-serif; }
-  #score { position: absolute; top: 10px; left: 10px; }
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    margin-top: 50px;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 100px);
+    gap: 5px;
+    margin: 0 auto;
+    width: 315px;
+  }
+  .cell {
+    width: 100px;
+    height: 100px;
+    border: 1px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3em;
+    cursor: pointer;
+    user-select: none;
+  }
+  #message {
+    margin-top: 20px;
+    font-size: 1.5em;
+  }
+  #reset {
+    margin-top: 10px;
+    padding: 5px 15px;
+  }
 </style>
 </head>
 <body>
-<canvas id="game" width="480" height="320"></canvas>
-<div id="score">Score: <span id="scoreVal">0</span></div>
+<h1>○×ゲーム</h1>
+<div id="board">
+  <div class="cell" data-index="0"></div>
+  <div class="cell" data-index="1"></div>
+  <div class="cell" data-index="2"></div>
+  <div class="cell" data-index="3"></div>
+  <div class="cell" data-index="4"></div>
+  <div class="cell" data-index="5"></div>
+  <div class="cell" data-index="6"></div>
+  <div class="cell" data-index="7"></div>
+  <div class="cell" data-index="8"></div>
+</div>
+<div id="message"></div>
+<button id="reset">リセット</button>
+
 <script>
-// Getting canvas context
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+  const cells = document.querySelectorAll('.cell');
+  const message = document.getElementById('message');
+  const board = Array(9).fill(null);
+  let current = '○';
+  let gameOver = false;
 
-// Game constants
-const PADDLE_HEIGHT = 10;
-const PADDLE_WIDTH_BASE = 75;
-const BALL_RADIUS = 8;
-const BRICK_ROW_COUNT = 5;
-const BRICK_COLUMN_COUNT = 7;
-const BRICK_WIDTH = 55;
-const BRICK_HEIGHT = 20;
-const BRICK_PADDING = 10;
-const BRICK_OFFSET_TOP = 30;
-const BRICK_OFFSET_LEFT = 35;
+  cells.forEach(cell => cell.addEventListener('click', handleClick));
+  document.getElementById('reset').addEventListener('click', resetGame);
 
-let paddleWidth = PADDLE_WIDTH_BASE;
-let paddleX = (canvas.width - paddleWidth) / 2;
-
-let balls = [{ x: canvas.width/2, y: canvas.height-30, dx: 2, dy: -2 }];
-let bricks = [];
-let rightPressed = false;
-let leftPressed = false;
-let score = 0;
-let item = null; // active falling item
-let effect = null; // active effect object { type, timeout }
-
-// Initialize bricks
-for(let c=0; c<BRICK_COLUMN_COUNT; c++) {
-  bricks[c] = [];
-  for(let r=0; r<BRICK_ROW_COUNT; r++) {
-    bricks[c][r] = { x: 0, y: 0, status: 1 };
-  }
-}
-
-document.addEventListener("keydown", keyDownHandler, false);
-document.addEventListener("keyup", keyUpHandler, false);
-
-function keyDownHandler(e) {
-  if(e.key === "Right" || e.key === "ArrowRight") {
-    rightPressed = true;
-  } else if(e.key === "Left" || e.key === "ArrowLeft") {
-    leftPressed = true;
-  }
-}
-
-function keyUpHandler(e) {
-  if(e.key === "Right" || e.key === "ArrowRight") {
-    rightPressed = false;
-  } else if(e.key === "Left" || e.key === "ArrowLeft") {
-    leftPressed = false;
-  }
-}
-
-function drawBall(ball) {
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI*2);
-  ctx.fillStyle = "#fff";
-  ctx.fill();
-  ctx.closePath();
-}
-
-function drawPaddle() {
-  ctx.beginPath();
-  ctx.rect(paddleX, canvas.height-PADDLE_HEIGHT, paddleWidth, PADDLE_HEIGHT);
-  ctx.fillStyle = "#0f0";
-  ctx.fill();
-  ctx.closePath();
-}
-
-function drawBricks() {
-  for(let c=0; c<BRICK_COLUMN_COUNT; c++) {
-    for(let r=0; r<BRICK_ROW_COUNT; r++) {
-      if(bricks[c][r].status === 1) {
-        let brickX = (c*(BRICK_WIDTH+BRICK_PADDING))+BRICK_OFFSET_LEFT;
-        let brickY = (r*(BRICK_HEIGHT+BRICK_PADDING))+BRICK_OFFSET_TOP;
-        bricks[c][r].x = brickX;
-        bricks[c][r].y = brickY;
-        ctx.beginPath();
-        ctx.rect(brickX, brickY, BRICK_WIDTH, BRICK_HEIGHT);
-        ctx.fillStyle = "#09c";
-        ctx.fill();
-        ctx.closePath();
-      }
+  function handleClick(e) {
+    const index = Number(e.target.dataset.index);
+    if (board[index] || gameOver) return;
+    board[index] = current;
+    e.target.textContent = current;
+    if (checkWin()) {
+      message.textContent = `${current}の勝ち`;
+      gameOver = true;
+    } else if (board.every(v => v)) {
+      message.textContent = '引き分け';
+      gameOver = true;
+    } else {
+      current = current === '○' ? '×' : '○';
     }
   }
-}
 
-function drawItem() {
-  if(item) {
-    ctx.font = "16px Arial";
-    ctx.fillStyle = "#ff0";
-    ctx.fillText('★', item.x, item.y);
+  function checkWin() {
+    const lines = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+    return lines.some(([a,b,c]) => board[a] && board[a] === board[b] && board[a] === board[c]);
   }
-}
 
-function collisionDetection() {
-  balls.forEach(ball => {
-    for(let c=0; c<BRICK_COLUMN_COUNT; c++) {
-      for(let r=0; r<BRICK_ROW_COUNT; r++) {
-        let b = bricks[c][r];
-        if(b.status === 1) {
-          if(ball.x > b.x && ball.x < b.x+BRICK_WIDTH && ball.y > b.y && ball.y < b.y+BRICK_HEIGHT) {
-            ball.dy = -ball.dy;
-            b.status = 0;
-            score++;
-            document.getElementById('scoreVal').textContent = score;
-            if(!effect && Math.random() < 0.3 && !item) {
-              item = { x: b.x+BRICK_WIDTH/2, y: b.y, type: ['multi','expand','slow'][Math.floor(Math.random()*3)] };
-            }
-            if(score === BRICK_ROW_COUNT*BRICK_COLUMN_COUNT) {
-              alert("ゲームクリア!");
-              document.location.reload();
-            }
-          }
-        }
-      }
-    }
-  });
-}
-
-function movePaddle() {
-  if(rightPressed && paddleX < canvas.width-paddleWidth) {
-    paddleX += 7;
-  } else if(leftPressed && paddleX > 0) {
-    paddleX -= 7;
+  function resetGame() {
+    board.fill(null);
+    cells.forEach(cell => cell.textContent = '');
+    message.textContent = '';
+    current = '○';
+    gameOver = false;
   }
-}
-
-function moveBalls() {
-  balls.forEach((ball, index) => {
-    if(ball.x + ball.dx > canvas.width-BALL_RADIUS || ball.x + ball.dx < BALL_RADIUS) {
-      ball.dx = -ball.dx;
-    }
-    if(ball.y + ball.dy < BALL_RADIUS) {
-      ball.dy = -ball.dy;
-    } else if(ball.y + ball.dy > canvas.height-BALL_RADIUS-PADDLE_HEIGHT) {
-      if(ball.x > paddleX && ball.x < paddleX + paddleWidth) {
-        ball.dy = -ball.dy;
-      } else if(ball.y + ball.dy > canvas.height-BALL_RADIUS) {
-        // Ball lost
-        balls.splice(index,1);
-        if(balls.length === 0) {
-          alert("ゲームオーバー");
-          document.location.reload();
-        }
-      }
-    }
-
-    ball.x += ball.dx;
-    ball.y += ball.dy;
-  });
-}
-
-function moveItem() {
-  if(item) {
-    item.y += 2;
-    if(item.y > canvas.height-PADDLE_HEIGHT && item.x > paddleX && item.x < paddleX+paddleWidth) {
-      applyItemEffect(item.type);
-      item = null;
-    } else if(item.y > canvas.height) {
-      item = null;
-    }
-  }
-}
-
-function applyItemEffect(type) {
-  if(type === 'multi') {
-    // add two additional balls
-    balls.push({ ...balls[0] }, { ...balls[0] });
-  } else if(type === 'expand') {
-    paddleWidth *= 2;
-  } else if(type === 'slow') {
-    balls.forEach(ball => { ball.dx *= 0.8; ball.dy *= 0.8; });
-  }
-  effect = { type };
-  setTimeout(() => {
-    // revert effects
-    if(effect.type === 'expand') paddleWidth = PADDLE_WIDTH_BASE;
-    if(effect.type === 'slow') balls.forEach(ball => { ball.dx /= 0.8; ball.dy /= 0.8; });
-    effect = null;
-  }, 20000);
-}
-
-function draw() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawBricks();
-  drawBalls();
-  drawPaddle();
-  drawItem();
-  moveBalls();
-  movePaddle();
-  moveItem();
-  collisionDetection();
-  requestAnimationFrame(draw);
-}
-
-function drawBalls() {
-  balls.forEach(drawBall);
-}
-
-draw();
 </script>
 </body>
 </html>
