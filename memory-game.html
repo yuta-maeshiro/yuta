@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>神経衰弱ゲーム</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    margin-top: 30px;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(4, 60px);
+    grid-template-rows: repeat(4, 60px);
+    gap: 5px;
+    justify-content: center;
+    margin: 0 auto;
+    width: 250px;
+  }
+  .card {
+    width: 60px;
+    height: 60px;
+    border: 1px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    cursor: pointer;
+    background: #2c3e50;
+    color: transparent;
+  }
+  .revealed {
+    background: #ecf0f1;
+    color: #2c3e50;
+    cursor: default;
+  }
+  #info {
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<h1>神経衰弱ゲーム</h1>
+<div id="board"></div>
+<div id="info">
+  <div id="turn"></div>
+  <div>あなた: <span id="player-score">0</span>  CPU: <span id="cpu-score">0</span></div>
+</div>
+<div id="result" style="margin-top:15px;font-size:1.2em;"></div>
+<script>
+const emojis = ['\u{1F436}','\u{1F431}','\u{1F42D}','\u{1F439}','\u{1F98A}','\u{1F43B}','\u{1F43C}','\u{1F428}'];
+const values = shuffle([...emojis, ...emojis]);
+const boardEl = document.getElementById('board');
+const turnEl = document.getElementById('turn');
+const playerScoreEl = document.getElementById('player-score');
+const cpuScoreEl = document.getElementById('cpu-score');
+const resultEl = document.getElementById('result');
+
+let revealed = Array(16).fill(false);
+let matched = Array(16).fill(false);
+let selected = [];
+let playerScore = 0;
+let cpuScore = 0;
+let current = 'player';
+let memory = {}; // index -> value
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function createBoard() {
+  for (let i = 0; i < 16; i++) {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.dataset.index = i;
+    div.addEventListener('click', () => handlePlayer(i));
+    boardEl.appendChild(div);
+  }
+  updateTurn();
+}
+
+function reveal(index) {
+  const card = boardEl.children[index];
+  card.classList.add('revealed');
+  card.textContent = values[index];
+  revealed[index] = true;
+  maybeRemember(index, values[index]);
+}
+
+function hide(index) {
+  const card = boardEl.children[index];
+  if (!matched[index]) {
+    card.classList.remove('revealed');
+    card.textContent = '';
+    revealed[index] = false;
+  }
+}
+
+function maybeRemember(index, value) {
+  if (Math.random() < 0.7) {
+    memory[index] = value;
+  }
+}
+
+function forgetSome() {
+  for (const idx in memory) {
+    if (Math.random() < 0.1) delete memory[idx];
+  }
+}
+
+function handlePlayer(index) {
+  if (current !== 'player' || revealed[index] || matched[index]) return;
+  reveal(index);
+  selected.push(index);
+  if (selected.length === 2) {
+    if (values[selected[0]] === values[selected[1]]) {
+      matched[selected[0]] = matched[selected[1]] = true;
+      playerScore++;
+      playerScoreEl.textContent = playerScore;
+      selected = [];
+      if (isGameOver()) {
+        showResult();
+      }
+    } else {
+      setTimeout(() => {
+        hide(selected[0]);
+        hide(selected[1]);
+        selected = [];
+        current = 'cpu';
+        updateTurn();
+        setTimeout(cpuTurn, 500);
+      }, 800);
+    }
+  }
+}
+
+function cpuTurn() {
+  if (isGameOver()) return;
+  forgetSome();
+  let pair = findKnownPair();
+  if (!pair) {
+    const unknown = getUnmatchedIndices();
+    const knownIdx = Object.keys(memory).map(n => parseInt(n)).filter(i => !matched[i]);
+    let first;
+    if (knownIdx.length > 0 && Math.random() < 0.6) {
+      first = knownIdx[Math.floor(Math.random()*knownIdx.length)];
+    } else {
+      first = unknown[Math.floor(Math.random()*unknown.length)];
+    }
+    reveal(first);
+    selected.push(first);
+    pair = findPairFor(first);
+    let second;
+    if (pair) {
+      second = pair;
+    } else {
+      const remaining = getUnmatchedIndices().filter(i => i !== first);
+      second = remaining[Math.floor(Math.random()*remaining.length)];
+    }
+    setTimeout(() => {
+      reveal(second);
+      selected.push(second);
+      concludeCpuTurn();
+    }, 500);
+    return;
+  }
+  reveal(pair[0]);
+  selected.push(pair[0]);
+  setTimeout(() => {
+    reveal(pair[1]);
+    selected.push(pair[1]);
+    concludeCpuTurn();
+  }, 500);
+}
+
+function concludeCpuTurn() {
+  if (values[selected[0]] === values[selected[1]]) {
+    matched[selected[0]] = matched[selected[1]] = true;
+    cpuScore++;
+    cpuScoreEl.textContent = cpuScore;
+    delete memory[selected[0]];
+    delete memory[selected[1]];
+    selected = [];
+    if (isGameOver()) {
+      showResult();
+    } else {
+      setTimeout(cpuTurn, 500); // continue turn
+    }
+  } else {
+    setTimeout(() => {
+      hide(selected[0]);
+      hide(selected[1]);
+      selected.forEach(i => maybeRemember(i, values[i]));
+      selected = [];
+      current = 'player';
+      updateTurn();
+    }, 800);
+  }
+}
+
+function findKnownPair() {
+  const entries = Object.entries(memory).map(([k,v]) => [parseInt(k), v]).filter(([i]) => !matched[i]);
+  for (let i = 0; i < entries.length; i++) {
+    for (let j = i+1; j < entries.length; j++) {
+      if (entries[i][1] === entries[j][1]) {
+        return [entries[i][0], entries[j][0]];
+      }
+    }
+  }
+  return null;
+}
+
+function findPairFor(index) {
+  for (const [idx, val] of Object.entries(memory)) {
+    const i = parseInt(idx);
+    if (i !== index && !matched[i] && memory[index] === val) {
+      return i;
+    }
+  }
+  return null;
+}
+
+function getUnmatchedIndices() {
+  const res = [];
+  for (let i = 0; i < 16; i++) {
+    if (!matched[i]) res.push(i);
+  }
+  return res;
+}
+
+function isGameOver() {
+  return matched.every(m => m);
+}
+
+function updateTurn() {
+  turnEl.textContent = current === 'player' ? 'あなたの番です' : 'CPUの番です';
+}
+
+function showResult() {
+  const winner = playerScore === cpuScore ? '引き分け' : playerScore > cpuScore ? 'あなたの勝ち!' : 'CPUの勝ち!';
+  resultEl.textContent = `${winner} 得点 あなた:${playerScore} CPU:${cpuScore}`;
+  turnEl.textContent = '';
+}
+
+createBoard();
+</script>
+</body>
+</html>
