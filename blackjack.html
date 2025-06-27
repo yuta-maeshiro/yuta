@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ブラックジャック</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin-top: 30px; }
+  #dealer, #player { margin: 10px; }
+  #controls button { margin: 5px; padding: 5px 15px; }
+</style>
+</head>
+<body>
+<h1>ブラックジャック</h1>
+<div>
+  <div>ディーラー: <span id="dealer-hand"></span> (<span id="dealer-score"></span>)</div>
+  <div>あなた: <span id="player-hand"></span> (<span id="player-score"></span>)</div>
+</div>
+<div id="message" style="margin-top:15px;font-size:1.2em;"></div>
+<div id="controls" style="margin-top:15px;">
+  <button id="hit">ヒット</button>
+  <button id="stand">スタンド</button>
+  <button id="reset" style="display:none;">もう一度</button>
+</div>
+<script>
+const suits = ['\u2660','\u2665','\u2666','\u2663'];
+const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+let deck, playerHand, dealerHand, gameOver;
+
+function createDeck() {
+  const d = [];
+  for (const s of suits) {
+    for (const r of ranks) {
+      const val = r === 'A' ? 11 : ['J','Q','K'].includes(r) ? 10 : parseInt(r);
+      d.push({s, r, val});
+    }
+  }
+  for (let i = d.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [d[i], d[j]] = [d[j], d[i]];
+  }
+  return d;
+}
+
+function startGame() {
+  deck = createDeck();
+  playerHand = [deck.pop(), deck.pop()];
+  dealerHand = [deck.pop(), deck.pop()];
+  gameOver = false;
+  update();
+}
+
+function handString(hand) {
+  return hand.map(c => c.r + c.s).join(' ');
+}
+
+function score(hand) {
+  let sum = 0;
+  let aces = 0;
+  for (const c of hand) {
+    sum += c.val;
+    if (c.r === 'A') aces++;
+  }
+  while (sum > 21 && aces > 0) {
+    sum -= 10;
+    aces--;
+  }
+  return sum;
+}
+
+function update() {
+  document.getElementById('player-hand').textContent = handString(playerHand);
+  document.getElementById('dealer-hand').textContent = handString(dealerHand);
+  document.getElementById('player-score').textContent = score(playerHand);
+  document.getElementById('dealer-score').textContent = gameOver ? score(dealerHand) : '?';
+}
+
+function endGame(msg) {
+  document.getElementById('message').textContent = msg;
+  document.getElementById('hit').style.display = 'none';
+  document.getElementById('stand').style.display = 'none';
+  document.getElementById('reset').style.display = 'inline';
+  gameOver = true;
+  update();
+}
+
+document.getElementById('hit').onclick = () => {
+  if (gameOver) return;
+  playerHand.push(deck.pop());
+  if (score(playerHand) > 21) {
+    endGame('あなたの負け (バースト)');
+  } else {
+    update();
+  }
+};
+
+document.getElementById('stand').onclick = () => {
+  if (gameOver) return;
+  while (score(dealerHand) < 17) {
+    dealerHand.push(deck.pop());
+  }
+  const playerScore = score(playerHand);
+  const dealerScore = score(dealerHand);
+  let msg;
+  if (dealerScore > 21 || playerScore > dealerScore) {
+    msg = 'あなたの勝ち!';
+  } else if (playerScore === dealerScore) {
+    msg = '引き分け';
+  } else {
+    msg = 'あなたの負け';
+  }
+  endGame(msg);
+};
+
+document.getElementById('reset').onclick = () => {
+  document.getElementById('message').textContent = '';
+  document.getElementById('hit').style.display = 'inline';
+  document.getElementById('stand').style.display = 'inline';
+  document.getElementById('reset').style.display = 'none';
+  startGame();
+};
+
+startGame();
+</script>
+</body>
+</html>
