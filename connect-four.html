@@ -48,7 +48,9 @@
 const boardEl = document.getElementById('board');
 const message = document.getElementById('message');
 const board = Array.from({length:7}, () => Array(7).fill(null));
-let current = '○';
+const HUMAN = '○';
+const AI = '×';
+let current = HUMAN;
 let gameOver = false;
 
 // セルを生成
@@ -64,43 +66,168 @@ for (let r = 0; r < 7; r++) {
 }
 
 function handleClick(e) {
-  if (gameOver) return;
+  if (gameOver || current !== HUMAN) return;
   const col = Number(e.target.dataset.col);
+  if (makeMove(col)) {
+    if (!gameOver) setTimeout(cpuMove, 300);
+  }
+}
+
+function makeMove(col) {
   for (let r = 6; r >= 0; r--) {
     if (!board[r][col]) {
       board[r][col] = current;
       const idx = r * 7 + col;
       boardEl.children[idx].textContent = current;
-      if (checkWin(r, col)) {
+      if (checkWin(board, r, col)) {
         message.textContent = `${current}の勝ち`;
         gameOver = true;
       } else if (board.flat().every(v => v)) {
         message.textContent = '引き分け';
         gameOver = true;
       } else {
-        current = current === '○' ? '×' : '○';
+        current = current === HUMAN ? AI : HUMAN;
       }
-      break;
+      return true;
     }
   }
+  return false;
 }
 
-function checkWin(r, c) {
-  const mark = board[r][c];
+function checkWin(b, r, c) {
+  const mark = b[r][c];
   const dirs = [[1,0],[0,1],[1,1],[1,-1]];
   for (const [dr, dc] of dirs) {
     let count = 1;
     let nr = r + dr, nc = c + dc;
-    while (nr >= 0 && nr < 7 && nc >= 0 && nc < 7 && board[nr][nc] === mark) {
+    while (nr >= 0 && nr < 7 && nc >= 0 && nc < 7 && b[nr][nc] === mark) {
       count++; nr += dr; nc += dc;
     }
     nr = r - dr; nc = c - dc;
-    while (nr >= 0 && nr < 7 && nc >= 0 && nc < 7 && board[nr][nc] === mark) {
+    while (nr >= 0 && nr < 7 && nc >= 0 && nc < 7 && b[nr][nc] === mark) {
       count++; nr -= dr; nc -= dc;
     }
     if (count >= 4) return true;
   }
   return false;
+}
+
+function getAvailableRow(b, col) {
+  for (let r = 6; r >= 0; r--) {
+    if (!b[r][col]) return r;
+  }
+  return null;
+}
+
+function boardFull(b) {
+  return b.flat().every(v => v);
+}
+
+function evaluateBoard(b) {
+  let score = 0;
+  for (let r = 0; r < 7; r++) {
+    for (let c = 0; c <= 3; c++) {
+      score += evaluateLine([b[r][c], b[r][c+1], b[r][c+2], b[r][c+3]]);
+    }
+  }
+  for (let c = 0; c < 7; c++) {
+    for (let r = 0; r <= 3; r++) {
+      score += evaluateLine([b[r][c], b[r+1][c], b[r+2][c], b[r+3][c]]);
+    }
+  }
+  for (let r = 0; r <= 3; r++) {
+    for (let c = 0; c <= 3; c++) {
+      score += evaluateLine([b[r][c], b[r+1][c+1], b[r+2][c+2], b[r+3][c+3]]);
+    }
+  }
+  for (let r = 3; r < 7; r++) {
+    for (let c = 0; c <= 3; c++) {
+      score += evaluateLine([b[r][c], b[r-1][c+1], b[r-2][c+2], b[r-3][c+3]]);
+    }
+  }
+  return score;
+}
+
+function evaluateLine(line) {
+  const aiCount = line.filter(v => v === AI).length;
+  const humanCount = line.filter(v => v === HUMAN).length;
+  if (aiCount > 0 && humanCount > 0) return 0;
+  if (aiCount === 0 && humanCount === 0) return 0;
+  if (aiCount > 0) {
+    return [0,1,10,50,1000][aiCount];
+  }
+  if (humanCount > 0) {
+    return -[0,1,10,50,1000][humanCount];
+  }
+  return 0;
+}
+
+function minimax(b, depth, isMax, alpha, beta) {
+  if (depth === 0 || boardFull(b)) return evaluateBoard(b);
+  if (isMax) {
+    let best = -Infinity;
+    for (let c = 0; c < 7; c++) {
+      const r = getAvailableRow(b, c);
+      if (r === null) continue;
+      b[r][c] = AI;
+      if (checkWin(b, r, c)) {
+        b[r][c] = null;
+        return 1000 + depth;
+      }
+      const score = minimax(b, depth-1, false, alpha, beta);
+      b[r][c] = null;
+      best = Math.max(best, score);
+      alpha = Math.max(alpha, score);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let c = 0; c < 7; c++) {
+      const r = getAvailableRow(b, c);
+      if (r === null) continue;
+      b[r][c] = HUMAN;
+      if (checkWin(b, r, c)) {
+        b[r][c] = null;
+        return -1000 - depth;
+      }
+      const score = minimax(b, depth-1, true, alpha, beta);
+      b[r][c] = null;
+      best = Math.min(best, score);
+      beta = Math.min(beta, score);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+function bestMove() {
+  let bestScore = -Infinity;
+  let bestCol = null;
+  for (let c = 0; c < 7; c++) {
+    const r = getAvailableRow(board, c);
+    if (r === null) continue;
+    board[r][c] = AI;
+    if (checkWin(board, r, c)) {
+      board[r][c] = null;
+      return c;
+    }
+    const score = minimax(board, 4, false, -Infinity, Infinity);
+    board[r][c] = null;
+    if (score > bestScore) {
+      bestScore = score;
+      bestCol = c;
+    }
+  }
+  return bestCol;
+}
+
+function cpuMove() {
+  if (gameOver || current !== AI) return;
+  const col = bestMove();
+  if (col !== null && col !== undefined) {
+    makeMove(col);
+  }
 }
 
 document.getElementById('reset').addEventListener('click', resetGame);
@@ -113,7 +240,7 @@ function resetGame() {
   }
   [...boardEl.children].forEach(cell => cell.textContent = '');
   message.textContent = '';
-  current = '○';
+  current = HUMAN;
   gameOver = false;
 }
 </script>
