@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ITパスポート学習チャット</title>
+<style>
+  body {
+    font-family: sans-serif;
+    margin: 20px;
+  }
+  #score {
+    margin-bottom: 10px;
+  }
+  #chat {
+    border: 1px solid #ccc;
+    padding: 10px;
+    max-width: 600px;
+    height: 400px;
+    overflow-y: auto;
+    margin: 0 auto;
+  }
+  .message {
+    margin: 5px 0;
+    padding: 8px 12px;
+    border-radius: 10px;
+    max-width: 80%;
+    display: block;
+  }
+  .teacher {
+    background: #f0f0f0;
+    text-align: left;
+  }
+  .user {
+    background: #cce5ff;
+    margin-left: auto;
+    text-align: right;
+  }
+  #inputArea {
+    text-align: center;
+    margin-top: 10px;
+  }
+  button {
+    margin: 5px;
+  }
+</style>
+</head>
+<body>
+<h2>ITパスポート学習チャット</h2>
+<div id="score">正解数: <span id="correct">0</span></div>
+<div id="chat"></div>
+<div id="inputArea"></div>
+<script>
+const terms = [
+  { "term": "情報セキュリティ", "definition": "コンピュータや情報を守ること。" },
+  { "term": "データベース", "definition": "大量のデータを整理して管理する仕組み。" },
+  { "term": "クラウドコンピューティング", "definition": "インターネットを通じてサービスを利用すること。" }
+];
+
+const quizzes = [
+  {
+    "question": "ITパスポートの試験で扱われる分野はどれ？",
+    "choices": ["法律", "医療", "文学", "生物"],
+    "answer": "法律",
+    "explanation": "ITパスポートでは情報に関する法律も扱われます。"
+  },
+  {
+    "question": "データベースの特徴は？",
+    "choices": ["本を管理する", "情報をまとめて管理する", "動画を再生する", "音楽を作る"],
+    "answer": "情報をまとめて管理する",
+    "explanation": "データベースは情報を整理・保存するための仕組みです。"
+  }
+];
+
+let correctCount = parseInt(localStorage.getItem('correctCount')) || 0;
+document.getElementById('correct').textContent = correctCount;
+const chat = document.getElementById('chat');
+
+function addMessage(text, isTeacher) {
+  const div = document.createElement('div');
+  div.className = 'message ' + (isTeacher ? 'teacher' : 'user');
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showMenu() {
+  const area = document.getElementById('inputArea');
+  area.innerHTML = '';
+  const termBtn = document.createElement('button');
+  termBtn.textContent = '用語解説';
+  termBtn.onclick = showTerm;
+  const quizBtn = document.createElement('button');
+  quizBtn.textContent = 'クイズに挑戦';
+  quizBtn.onclick = startQuiz;
+  area.appendChild(termBtn);
+  area.appendChild(quizBtn);
+}
+
+function showTerm() {
+  const term = terms[Math.floor(Math.random() * terms.length)];
+  addMessage(`${term.term}: ${term.definition}`, true);
+  showMenu();
+}
+
+function startQuiz() {
+  const q = quizzes[Math.floor(Math.random() * quizzes.length)];
+  addMessage(q.question, true);
+  const area = document.getElementById('inputArea');
+  area.innerHTML = '';
+  q.choices.forEach(choice => {
+    const btn = document.createElement('button');
+    btn.textContent = choice;
+    btn.onclick = () => answerQuiz(q, choice);
+    area.appendChild(btn);
+  });
+}
+
+function answerQuiz(q, choice) {
+  addMessage(choice, false);
+  const area = document.getElementById('inputArea');
+  area.innerHTML = '';
+  if (choice === q.answer) {
+    correctCount++;
+    localStorage.setItem('correctCount', correctCount);
+    document.getElementById('correct').textContent = correctCount;
+    addMessage('正解！ ' + q.explanation, true);
+  } else {
+    addMessage('不正解。 ' + q.explanation, true);
+  }
+  showMenu();
+}
+
+window.addEventListener('load', () => {
+  addMessage('「用語解説」か「クイズに挑戦」を選んでね。', true);
+  showMenu();
+});
+</script>
+</body>
+</html>
