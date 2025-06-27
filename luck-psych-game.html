@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>運ゲー＋心理戦</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin-top: 30px; }
+  #log { margin-top: 10px; height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; }
+  #controls input { width: 60px; }
+  #status { margin-top: 10px; }
+</style>
+</head>
+<body>
+<h1>運ゲー＋心理戦</h1>
+<div id="setup">
+  あなたの数字を3つ入力してください（1-10、カンマ区切り）:<br>
+  <input type="text" id="player-numbers" placeholder="例: 3,7,9">
+  <button id="start">開始</button>
+</div>
+<div id="game" style="display:none;">
+  <div id="status"></div>
+  <div id="controls">
+    <input type="text" id="guess" placeholder="1-10">
+    <button id="guess-btn">予想</button>
+    <button id="ask-btn" disabled>質問します</button>
+    <input type="text" id="ask-input" style="display:none;" placeholder="1-10">
+    <button id="ask-send" style="display:none;">送信</button>
+  </div>
+  <div id="log"></div>
+  <button id="reset">リセット</button>
+</div>
+<script>
+const startBtn = document.getElementById('start');
+const playerInput = document.getElementById('player-numbers');
+const gameDiv = document.getElementById('game');
+const statusDiv = document.getElementById('status');
+const guessInput = document.getElementById('guess');
+const guessBtn = document.getElementById('guess-btn');
+const askBtn = document.getElementById('ask-btn');
+const askInput = document.getElementById('ask-input');
+const askSend = document.getElementById('ask-send');
+const logDiv = document.getElementById('log');
+const resetBtn = document.getElementById('reset');
+
+let cpuNumbers = [];
+let playerNumbers = [];
+let cpuRemaining = {};
+let playerRemaining = {};
+let playerHits = 0;
+let cpuHits = 0;
+let turn = 1;
+let questionAvailable = false;
+let askMode = false;
+
+function log(msg) {
+  const div = document.createElement('div');
+  div.textContent = msg;
+  logDiv.appendChild(div);
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function randomNumbers() {
+  const nums = [];
+  for (let i = 0; i < 3; i++) {
+    nums.push(Math.floor(Math.random()*10)+1);
+  }
+  return nums;
+}
+
+function countMap(arr) {
+  const m = {};
+  for (const n of arr) m[n] = (m[n]||0)+1;
+  return m;
+}
+
+function updateStatus() {
+  statusDiv.textContent = `ターン:${turn}  あなたの的中:${playerHits}/3  CPUの的中:${cpuHits}/3  質問可:${questionAvailable?'はい':'いいえ'}`;
+}
+
+function startGame() {
+  const vals = playerInput.value.split(',').map(s=>parseInt(s.trim())).filter(n=>n>=1 && n<=10);
+  if (vals.length !== 3) { alert('1-10の数字を3つ入力してください'); return; }
+  playerNumbers = vals;
+  playerRemaining = countMap(playerNumbers);
+  cpuNumbers = randomNumbers();
+  cpuRemaining = countMap(cpuNumbers);
+  document.getElementById('setup').style.display = 'none';
+  gameDiv.style.display = 'block';
+  log('ゲーム開始! あなたの番です');
+  updateStatus();
+}
+
+function cpuGuess() {
+  const guess = Math.floor(Math.random()*10)+1;
+  log(`CPUの予想:${guess}`);
+  if (playerRemaining[guess]) {
+    cpuHits += playerRemaining[guess];
+    delete playerRemaining[guess];
+    log('CPUが当てました!');
+  } else {
+    log('CPUは外しました');
+  }
+  if (cpuHits >= 3) {
+    endGame('CPUの勝ち!');
+    return;
+  }
+  turn++;
+  questionAvailable = turn%3===1; // after both turns
+  updateStatus();
+  log('あなたの番です');
+}
+
+function playerGuess() {
+  const val = parseInt(guessInput.value);
+  guessInput.value='';
+  if (!(val>=1 && val<=10)) { alert('1-10の数字を入力'); return; }
+  if (cpuRemaining[val]) {
+    playerHits += cpuRemaining[val];
+    delete cpuRemaining[val];
+    log(`正解! ${val} は含まれています`);
+  } else {
+    log('違います');
+  }
+  if (playerHits >= 3) { endGame('あなたの勝ち!'); return; }
+  turn++;
+  questionAvailable = turn%3===1;
+  updateStatus();
+  setTimeout(cpuGuess,500);
+}
+
+function askQuestion() {
+  if (!questionAvailable) return;
+  askMode = true;
+  askBtn.disabled = true;
+  askInput.style.display='inline';
+  askSend.style.display='inline';
+}
+
+function sendQuestion() {
+  const val = parseInt(askInput.value);
+  if (!(val>=1 && val<=10)) { alert('1-10の数字を入力'); return; }
+  askInput.value='';
+  askInput.style.display='none';
+  askSend.style.display='none';
+  askMode = false;
+  questionAvailable = false;
+  const remainingNums = Object.keys(cpuRemaining).map(n=>parseInt(n));
+  if (remainingNums.length===0) { log('相手の数字はもう残っていません'); updateStatus(); return; }
+  const target = remainingNums[Math.floor(Math.random()*remainingNums.length)];
+  if (val < target) log(`↑ (${val} より大きい)`);
+  else log(`↓ (${val} より小さい)`);
+  updateStatus();
+}
+
+function endGame(msg) {
+  log(msg);
+  guessBtn.disabled = true;
+  askBtn.disabled = true;
+}
+
+startBtn.onclick = startGame;
+guessBtn.onclick = playerGuess;
+askBtn.onclick = askQuestion;
+askSend.onclick = sendQuestion;
+resetBtn.onclick = () => location.reload();
+</script>
+</body>
+</html>
