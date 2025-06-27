@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <title>タイピングゲーム</title>
 <style>
+  /* Basic layout and lane styles */
   body {
     font-family: sans-serif;
     display: flex;
@@ -12,7 +13,8 @@
   }
   #game {
     position: relative;
-    width: 400px;
+    width: 90vw;
+    max-width: 400px;
     height: 500px;
     border: 1px solid #333;
     overflow: hidden;
@@ -31,6 +33,7 @@
     background: #3498db;
     top: -20px;
   }
+  /* line player must hit notes on */
   #hit-line {
     position: absolute;
     bottom: 60px;
@@ -55,6 +58,7 @@
     from { opacity: 1; }
     to { opacity: 0; }
   }
+  /* result modal overlay */
   #result {
     position: fixed;
     top: 0;
@@ -66,14 +70,21 @@
     align-items: center;
     justify-content: center;
   }
+  /* modal inner box */
   #result-content {
     background: #fff;
     padding: 20px;
     text-align: center;
     min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #retry-toggle {
+    margin-top: 10px;
   }
   #retry {
-    margin-top: 10px;
+    margin: 10px auto 0;
     padding: 5px 10px;
   }
 </style>
@@ -91,27 +102,36 @@
   <div id="result-content">
     <div id="result-text"></div>
     <div id="records"></div>
-    <button id="retry">再挑戦</button>
+    <label id="retry-toggle"><input type="checkbox"> Retry 有効</label>
+    <button id="retry" disabled>再挑戦</button>
   </div>
 </div>
 <script>
+// Lane elements corresponding to keys D/F/J/K
 const lanes = [
   document.getElementById('lane0'),
   document.getElementById('lane1'),
   document.getElementById('lane2'),
   document.getElementById('lane3')
 ];
+// Active notes on screen
 let notes = [];
+// Current combo count
 let combo = 0;
+// Interval IDs for spawning and moving notes
 let gameInterval;
 let moveInterval;
+// Whether the game is running
 let running = false;
+// UI elements
 const comboEl = document.getElementById('combo');
 const result = document.getElementById('result');
 const resultText = document.getElementById('result-text');
 const recordsEl = document.getElementById('records');
 const retryBtn = document.getElementById('retry');
+const retryToggle = document.querySelector('#retry-toggle input');
 
+// Start a new round
 function startGame() {
   notes = [];
   combo = 0;
@@ -119,10 +139,13 @@ function startGame() {
   lanes.forEach(l => l.innerHTML = '');
   running = true;
   result.style.display = 'none';
+  retryBtn.disabled = true;
+  retryToggle.checked = false;
   gameInterval = setInterval(spawnNote, 800);
   moveInterval = setInterval(moveNotes, 20);
 }
 
+// Finish the game and show results
 function endGame() {
   running = false;
   clearInterval(gameInterval);
@@ -131,6 +154,7 @@ function endGame() {
   showResult();
 }
 
+// Create a note in a random lane
 function spawnNote() {
   const laneIndex = Math.floor(Math.random()*4);
   const note = document.createElement('div');
@@ -141,6 +165,7 @@ function spawnNote() {
   notes.push(note);
 }
 
+// Move notes downward each frame
 function moveNotes() {
   notes.forEach((note, idx) => {
     const top = parseInt(note.style.top) + 4;
@@ -152,6 +177,7 @@ function moveNotes() {
   notes = notes.filter(n => n.parentElement); // remove if removed
 }
 
+// Handle key presses for hitting notes
 document.addEventListener('keydown', e => {
   if (!running) return;
   const keys = ['d','f','j','k'];
@@ -160,6 +186,7 @@ document.addEventListener('keydown', e => {
   hit(laneIndex);
 });
 
+// Judge if a note is hit correctly
 function hit(laneIndex) {
   for (let i=0;i<notes.length;i++) {
     const note = notes[i];
@@ -178,6 +205,7 @@ function hit(laneIndex) {
   endGame();
 }
 
+// Flash effect when a note is hit
 function showEffect(laneIndex) {
   const effect = document.createElement('div');
   effect.className = 'effect';
@@ -185,6 +213,7 @@ function showEffect(laneIndex) {
   setTimeout(() => effect.remove(), 300);
 }
 
+// Display result modal and high scores
 function showResult() {
   resultText.textContent = '記録: ' + combo;
   const records = getRecords();
@@ -192,11 +221,13 @@ function showResult() {
   result.style.display = "flex";
 }
 
+// Load records from localStorage
 function getRecords() {
   const data = localStorage.getItem('records');
   return data ? JSON.parse(data) : [];
 }
 
+// Store new record and keep top 5
 function updateRecords(score) {
   const records = getRecords();
   records.push(score);
@@ -205,7 +236,13 @@ function updateRecords(score) {
   localStorage.setItem('records', JSON.stringify(records));
 }
 
+// UI events
 retryBtn.addEventListener('click', startGame);
+retryToggle.addEventListener('change', e => {
+  retryBtn.disabled = !e.target.checked;
+});
+
+// Launch the first game automatically
 startGame();
 </script>
 </body>
