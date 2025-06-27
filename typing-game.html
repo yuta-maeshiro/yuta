@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>タイピングゲーム</title>
+<style>
+  body {
+    font-family: sans-serif;
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+  #game {
+    position: relative;
+    width: 400px;
+    height: 500px;
+    border: 1px solid #333;
+    overflow: hidden;
+    display: flex;
+  }
+  .lane {
+    flex: 1;
+    border-left: 1px solid #999;
+    border-right: 1px solid #999;
+    position: relative;
+  }
+  .note {
+    position: absolute;
+    width: 100%;
+    height: 20px;
+    background: #3498db;
+    top: -20px;
+  }
+  #hit-line {
+    position: absolute;
+    bottom: 60px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: red;
+  }
+  #combo {
+    margin-left: 20px;
+    font-size: 1.5em;
+  }
+  .effect {
+    position: absolute;
+    bottom: 60px;
+    width: 100%;
+    height: 20px;
+    background: rgba(255,255,0,0.5);
+    animation: flash 0.3s ease-out;
+  }
+  @keyframes flash {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  #result {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  #result-content {
+    background: #fff;
+    padding: 20px;
+    text-align: center;
+    min-width: 200px;
+  }
+  #retry {
+    margin-top: 10px;
+    padding: 5px 10px;
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <div class="lane" id="lane0"></div>
+  <div class="lane" id="lane1"></div>
+  <div class="lane" id="lane2"></div>
+  <div class="lane" id="lane3"></div>
+  <div id="hit-line"></div>
+</div>
+<div id="combo">Combo: 0</div>
+<div id="result">
+  <div id="result-content">
+    <div id="result-text"></div>
+    <div id="records"></div>
+    <button id="retry">再挑戦</button>
+  </div>
+</div>
+<script>
+const lanes = [
+  document.getElementById('lane0'),
+  document.getElementById('lane1'),
+  document.getElementById('lane2'),
+  document.getElementById('lane3')
+];
+let notes = [];
+let combo = 0;
+let gameInterval;
+let moveInterval;
+let running = false;
+const comboEl = document.getElementById('combo');
+const result = document.getElementById('result');
+const resultText = document.getElementById('result-text');
+const recordsEl = document.getElementById('records');
+const retryBtn = document.getElementById('retry');
+
+function startGame() {
+  notes = [];
+  combo = 0;
+  comboEl.textContent = 'Combo: 0';
+  lanes.forEach(l => l.innerHTML = '');
+  running = true;
+  result.style.display = 'none';
+  gameInterval = setInterval(spawnNote, 800);
+  moveInterval = setInterval(moveNotes, 20);
+}
+
+function endGame() {
+  running = false;
+  clearInterval(gameInterval);
+  clearInterval(moveInterval);
+  updateRecords(combo);
+  showResult();
+}
+
+function spawnNote() {
+  const laneIndex = Math.floor(Math.random()*4);
+  const note = document.createElement('div');
+  note.className = 'note';
+  note.dataset.lane = laneIndex;
+  note.style.top = '-20px';
+  lanes[laneIndex].appendChild(note);
+  notes.push(note);
+}
+
+function moveNotes() {
+  notes.forEach((note, idx) => {
+    const top = parseInt(note.style.top) + 4;
+    note.style.top = top + 'px';
+    if (top > 500) {
+      endGame();
+    }
+  });
+  notes = notes.filter(n => n.parentElement); // remove if removed
+}
+
+document.addEventListener('keydown', e => {
+  if (!running) return;
+  const keys = ['d','f','j','k'];
+  const laneIndex = keys.indexOf(e.key.toLowerCase());
+  if (laneIndex === -1) return;
+  hit(laneIndex);
+});
+
+function hit(laneIndex) {
+  for (let i=0;i<notes.length;i++) {
+    const note = notes[i];
+    if (parseInt(note.dataset.lane) === laneIndex) {
+      const top = parseInt(note.style.top);
+      if (top >= 420 && top <= 460) { // near hit line
+        note.remove();
+        notes.splice(i,1);
+        combo++;
+        comboEl.textContent = 'Combo: ' + combo;
+        showEffect(laneIndex);
+        return;
+      }
+    }
+  }
+  endGame();
+}
+
+function showEffect(laneIndex) {
+  const effect = document.createElement('div');
+  effect.className = 'effect';
+  lanes[laneIndex].appendChild(effect);
+  setTimeout(() => effect.remove(), 300);
+}
+
+function showResult() {
+  resultText.textContent = '記録: ' + combo;
+  const records = getRecords();
+  recordsEl.innerHTML = "<h3>トップ5</h3>" + records.map((r,i) => `${i+1}. ${r}`).join("<br>");
+  result.style.display = "flex";
+}
+
+function getRecords() {
+  const data = localStorage.getItem('records');
+  return data ? JSON.parse(data) : [];
+}
+
+function updateRecords(score) {
+  const records = getRecords();
+  records.push(score);
+  records.sort((a,b) => b-a);
+  while(records.length > 5) records.pop();
+  localStorage.setItem('records', JSON.stringify(records));
+}
+
+retryBtn.addEventListener('click', startGame);
+startGame();
+</script>
+</body>
+</html>
