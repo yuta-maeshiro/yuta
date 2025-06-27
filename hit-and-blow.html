@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Hit & Blow</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin-top: 30px; }
+  #log { margin-top: 10px; height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; }
+</style>
+</head>
+<body>
+<h1>Hit & Blow</h1>
+<div id="setup">
+  あなたの数字(3桁、重複不可):
+  <input type="text" id="player-secret">
+  <button id="start">開始</button>
+</div>
+<div id="game" style="display:none;">
+  <div id="message"></div>
+  <input type="text" id="guess" placeholder="3桁の数字">
+  <button id="guess-btn">推測</button>
+  <div id="log"></div>
+</div>
+<script>
+const startBtn = document.getElementById('start');
+const playerSecretInput = document.getElementById('player-secret');
+const gameDiv = document.getElementById('game');
+const messageDiv = document.getElementById('message');
+const guessInput = document.getElementById('guess');
+const guessBtn = document.getElementById('guess-btn');
+const logDiv = document.getElementById('log');
+let playerSecret = '';
+let cpuSecret = '';
+let candidates = [];
+let gameOver = false;
+
+function valid(num) {
+  return /^\d{3}$/.test(num) && new Set(num.split('')).size === 3;
+}
+
+function generateSecret() {
+  const digits = ['0','1','2','3','4','5','6','7','8','9'];
+  for (let i = digits.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [digits[i], digits[j]] = [digits[j], digits[i]];
+  }
+  return digits.slice(0,3).join('');
+}
+
+function generateCandidates() {
+  const nums = [];
+  for (let i=0;i<=9;i++){
+    for (let j=0;j<=9;j++){
+      if(j===i) continue;
+      for (let k=0;k<=9;k++){
+        if(k===i||k===j) continue;
+        nums.push(''+i+j+k);
+      }
+    }
+  }
+  return nums;
+}
+
+function evaluate(guess, secret) {
+  let hits = 0, blows = 0;
+  for (let i=0;i<3;i++) {
+    if (guess[i] === secret[i]) {
+      hits++;
+    } else if (secret.includes(guess[i])) {
+      blows++;
+    }
+  }
+  return {hits, blows};
+}
+
+function resultString(res) {
+  const parts = [];
+  if (res.blows) parts.push(res.blows + 'B');
+  if (res.hits) parts.push(res.hits + 'hit');
+  if (!parts.length) parts.push('0B');
+  return parts.join(' ');
+}
+
+function log(msg) {
+  const div = document.createElement('div');
+  div.textContent = msg;
+  logDiv.appendChild(div);
+  logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function cpuTurn() {
+  if (gameOver) return;
+  const guess = candidates[Math.floor(Math.random()*candidates.length)];
+  const res = evaluate(guess, playerSecret);
+  log('CPU: '+guess+' -> '+resultString(res));
+  if (res.hits === 3) {
+    messageDiv.textContent = 'CPUの勝ち！';
+    gameOver = true;
+    return;
+  }
+  candidates = candidates.filter(n => {
+    const r = evaluate(guess, n);
+    return r.hits === res.hits && r.blows === res.blows;
+  });
+  messageDiv.textContent = 'あなたの番';
+}
+
+startBtn.addEventListener('click', () => {
+  const val = playerSecretInput.value.trim();
+  if (!valid(val)) {
+    alert('3桁の重複しない数字を入力してください');
+    return;
+  }
+  playerSecret = val;
+  cpuSecret = generateSecret();
+  candidates = generateCandidates();
+  gameOver = false;
+  gameDiv.style.display = 'block';
+  messageDiv.textContent = 'ゲーム開始！あなたの番';
+  logDiv.innerHTML = '';
+  guessInput.focus();
+});
+
+guessBtn.addEventListener('click', () => {
+  if (gameOver) return;
+  const val = guessInput.value.trim();
+  if (!valid(val)) {
+    alert('3桁の重複しない数字を入力してください');
+    return;
+  }
+  guessInput.value = '';
+  const res = evaluate(val, cpuSecret);
+  log('あなた: '+val+' -> '+resultString(res));
+  if (res.hits === 3) {
+    messageDiv.textContent = 'あなたの勝ち！';
+    gameOver = true;
+    return;
+  }
+  messageDiv.textContent = 'CPUの番...';
+  setTimeout(cpuTurn, 500);
+});
+</script>
+</body>
+</html>
