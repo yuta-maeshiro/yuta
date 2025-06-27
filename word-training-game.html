@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Word特訓タイピング</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin-top: 30px; }
+  #text { width: 80%; max-width: 600px; margin: 0 auto; padding: 10px; border: 1px solid #ccc; font-size: 1.2em; }
+  #input { width: 80%; max-width: 600px; margin: 10px auto; height: 120px; }
+  #records { margin-top: 20px; text-align: left; display: inline-block; }
+</style>
+</head>
+<body>
+<h1>Word特訓タイピング</h1>
+<div id="text"></div>
+<textarea id="input" disabled></textarea><br>
+<button id="start">スタート</button>
+<div id="result"></div>
+<div id="records">
+  <h3>タイム</h3>
+  <ol id="times"></ol>
+</div>
+<script>
+const texts = [
+  "タイピングスキルを上達させるためには、毎日少しずつでも継続して練習することが大切です。正しい指の位置を意識し、ミスタッチを恐れずにスピードよりも精度を重視してキーを打ちましょう。慣れてきたら文章を声に出しながら入力してみると、リズムよくタイピングできるようになり、長文でも集中力を切らさずに最後まで打ち切る力が身に付きます。また、ブラインドタッチを習得すれば画面から目を離さずに済むため、向上します。",
+  "新しい技術を身に付ける際には、まず概要を理解してから小さな目標を立て、成功体験を積み重ねることが効果的です。特にプログラミングの学習では、手を動かしてコードを書くことで理解が深まり、実践的なスキルへと昇華します。エラーに遭遇したときは諦めず、どこが問題なのかを一つ一つ調べていく姿勢が大切です。試行錯誤を繰り返すことで理解が深まり、自分なりの解決法を見つける力が養われます。学びが成長を促します。",
+  "集中して作業を進めるためには、短い休憩を適切に挟むことが効果的です。例えば二十五分仕事したら五分休むポモドーロ・テクニックを取り入れると、長時間の学習でもメリハリがつき、集中力を維持しやすくなります。休憩中は軽く体を動かしたり、目を閉じて深呼吸するなど、リフレッシュできる方法を試してみましょう。このリズムを守ることで、作業効率が高まるだけでなく、健康にも良い影響を与えるとされています。"
+];
+let startTime = 0;
+const textEl = document.getElementById('text');
+const inputEl = document.getElementById('input');
+const resultEl = document.getElementById('result');
+const timesEl = document.getElementById('times');
+
+function renderRecords(records) {
+  timesEl.innerHTML = '';
+  records.forEach(t => {
+    const li = document.createElement('li');
+    li.textContent = t.toFixed(2) + '秒';
+    timesEl.appendChild(li);
+  });
+}
+
+function updateRecords(time) {
+  let records = JSON.parse(localStorage.getItem('typingRecords') || '[]');
+  records.push(time);
+  records.sort((a,b)=>a-b);
+  if (records.length > 5) records = records.slice(0,5);
+  localStorage.setItem('typingRecords', JSON.stringify(records));
+  renderRecords(records);
+}
+
+document.getElementById('start').addEventListener('click', () => {
+  const text = texts[Math.floor(Math.random()*texts.length)];
+  textEl.textContent = text;
+  inputEl.value = '';
+  inputEl.disabled = false;
+  inputEl.focus();
+  resultEl.textContent = '';
+  startTime = performance.now();
+});
+
+inputEl.addEventListener('input', () => {
+  if (inputEl.value === textEl.textContent) {
+    const time = (performance.now() - startTime)/1000;
+    inputEl.disabled = true;
+    resultEl.textContent = `記録: ${time.toFixed(2)}秒`;
+    updateRecords(time);
+  }
+});
+
+// 初期表示
+renderRecords(JSON.parse(localStorage.getItem('typingRecords') || '[]'));
+</script>
+</body>
+</html>
