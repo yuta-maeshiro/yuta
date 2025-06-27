@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>掛け算クイズ</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    margin-top: 40px;
+  }
+  #question {
+    font-size: 2em;
+    margin: 20px 0;
+  }
+  #timer, #count {
+    font-weight: bold;
+    margin: 0 10px;
+  }
+  #result {
+    margin-top: 20px;
+    font-size: 1.4em;
+  }
+  input[type="number"] {
+    width: 100px;
+    text-align: center;
+    font-size: 1em;
+  }
+</style>
+</head>
+<body>
+<h1>二桁×二桁掛け算クイズ</h1>
+<div>
+  残り時間: <span id="timer">60</span>秒
+  <span id="count">0 / 10</span>
+</div>
+<div id="question"></div>
+<input type="number" id="answer" disabled>
+<button id="submit" disabled>回答</button>
+<button id="start">スタート</button>
+<div id="result"></div>
+<script>
+const questionEl = document.getElementById('question');
+const answerEl = document.getElementById('answer');
+const submitBtn = document.getElementById('submit');
+const startBtn = document.getElementById('start');
+const timerEl = document.getElementById('timer');
+const countEl = document.getElementById('count');
+const resultEl = document.getElementById('result');
+
+let problems = [];
+let current = 0;
+let correct = 0;
+let remaining = 60;
+let timerId = null;
+let running = false;
+
+function randTwoDigit() {
+  return Math.floor(Math.random() * 90) + 10;
+}
+
+function generateProblems() {
+  problems = [];
+  for (let i = 0; i < 10; i++) {
+    problems.push({a: randTwoDigit(), b: randTwoDigit()});
+  }
+}
+
+function showQuestion() {
+  const p = problems[current];
+  questionEl.textContent = `${p.a} × ${p.b} = ?`;
+  countEl.textContent = `${current + 1} / 10`;
+  answerEl.value = '';
+  answerEl.focus();
+}
+
+function startQuiz() {
+  generateProblems();
+  current = 0;
+  correct = 0;
+  remaining = 60;
+  timerEl.textContent = remaining;
+  resultEl.textContent = '';
+  running = true;
+  startBtn.disabled = true;
+  answerEl.disabled = false;
+  submitBtn.disabled = false;
+  showQuestion();
+  timerId = setInterval(() => {
+    remaining--;
+    timerEl.textContent = remaining;
+    if (remaining <= 0) {
+      finishQuiz();
+    }
+  }, 1000);
+}
+
+function submitAnswer() {
+  if (!running) return;
+  const p = problems[current];
+  if (Number(answerEl.value) === p.a * p.b) {
+    correct++;
+  }
+  current++;
+  if (current >= 10) {
+    finishQuiz();
+  } else {
+    showQuestion();
+  }
+}
+
+function finishQuiz() {
+  running = false;
+  clearInterval(timerId);
+  questionEl.textContent = '';
+  answerEl.disabled = true;
+  submitBtn.disabled = true;
+  startBtn.disabled = false;
+  resultEl.textContent = `結果: ${correct}問正解`;
+}
+
+submitBtn.addEventListener('click', submitAnswer);
+answerEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitAnswer();
+});
+startBtn.addEventListener('click', startQuiz);
+</script>
+</body>
+</html>
