@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ラインフライトゲーム</title>
+<style>
+  body { background:#000; color:#fff; font-family:sans-serif; text-align:center; margin-top:20px; }
+  canvas { display:block; margin:0 auto; background:#000; border:1px solid #444; }
+</style>
+</head>
+<body>
+<h1>ラインフライトゲーム</h1>
+<canvas id="game" width="480" height="320"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const w = canvas.width, h = canvas.height;
+let path = [];
+let obstacles = [];
+const player = { x:60, y:h/2, vy:0 };
+const speed = 2;
+const gravity = 0.3;
+const lift = 0.6;
+const obstacleInterval = 160;
+const obstacleWidth = 40;
+const gapHeight = 100;
+let distSinceLast = 0;
+let score = 0;
+let pressing = false;
+let gameOver = false;
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') pressing = true;
+  if (e.code === 'Enter' && gameOver) reset();
+});
+
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space') pressing = false;
+});
+
+canvas.addEventListener('mousedown', () => pressing = true);
+canvas.addEventListener('mouseup', () => pressing = false);
+canvas.addEventListener('mouseleave', () => pressing = false);
+
+function reset() {
+  path = [];
+  obstacles = [];
+  player.y = h / 2;
+  player.vy = 0;
+  score = 0;
+  distSinceLast = 0;
+  gameOver = false;
+  loop();
+}
+
+function spawnObstacle() {
+  const gapY = 30 + Math.random() * (h - gapHeight - 60);
+  obstacles.push({ x:w, gapY, gapH:gapHeight, w:obstacleWidth });
+}
+
+function update() {
+  if (gameOver) return;
+  if (pressing) player.vy -= lift; else player.vy += gravity;
+  player.vy = Math.max(Math.min(player.vy, 5), -5);
+  player.y += player.vy;
+
+  path.forEach(p => p.x -= speed);
+  path.push({ x:player.x, y:player.y });
+  if (path[0] && path[0].x < 0) path.shift();
+
+  distSinceLast += speed;
+  if (distSinceLast >= obstacleInterval) { spawnObstacle(); distSinceLast = 0; }
+  obstacles.forEach(o => o.x -= speed);
+  if (obstacles[0] && obstacles[0].x + obstacleWidth < 0) obstacles.shift();
+
+  if (player.y < 0 || player.y > h) gameOver = true;
+  obstacles.forEach(o => {
+    if (player.x > o.x && player.x < o.x + o.w) {
+      if (player.y < o.gapY || player.y > o.gapY + o.gapH) gameOver = true;
+    }
+  });
+  score += speed;
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,w,h);
+
+  ctx.strokeStyle = 'cyan';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i=0;i<path.length;i++) {
+    const p = path[i];
+    if (i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = 'red';
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, 4, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.fillStyle = 'green';
+  obstacles.forEach(o => {
+    ctx.fillRect(o.x, 0, o.w, o.gapY);
+    ctx.fillRect(o.x, o.gapY + o.gapH, o.w, h - (o.gapY + o.gapH));
+  });
+
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Score: ' + Math.floor(score/10), 10, 20);
+
+  if (gameOver) {
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText('Game Over - Enter to Retry', w/2, h/2);
+    ctx.textAlign = 'left';
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  if (!gameOver) requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
