@@ -10,7 +10,7 @@
 </head>
 <body>
 <h1>ラインフライトゲーム</h1>
-<canvas id="game" width="480" height="320"></canvas>
+<canvas id="game" width="640" height="480"></canvas>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -18,7 +18,8 @@ const w = canvas.width, h = canvas.height;
 let path = [];
 let obstacles = [];
 const player = { x:60, y:h/2, vy:0 };
-const speed = 2;
+const baseSpeed = 2;
+let speedScale = 0.7;
 const gravity = 0.3;
 const lift = 0.6;
 const obstacleInterval = 160;
@@ -28,6 +29,9 @@ let distSinceLast = 0;
 let score = 0;
 let pressing = false;
 let gameOver = false;
+let countdown = 3;
+let counting = true;
+let countdownTimer = null;
 
 document.addEventListener('keydown', e => {
   if (e.code === 'Space') pressing = true;
@@ -50,6 +54,17 @@ function reset() {
   score = 0;
   distSinceLast = 0;
   gameOver = false;
+  speedScale = 0.7;
+  countdown = 3;
+  counting = true;
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    countdown--;
+    if (countdown < 0) {
+      clearInterval(countdownTimer);
+      counting = false;
+    }
+  }, 1000);
   loop();
 }
 
@@ -63,6 +78,8 @@ function update() {
   if (pressing) player.vy -= lift; else player.vy += gravity;
   player.vy = Math.max(Math.min(player.vy, 5), -5);
   player.y += player.vy;
+
+  const speed = baseSpeed * speedScale;
 
   path.forEach(p => p.x -= speed);
   path.push({ x:player.x, y:player.y });
@@ -80,6 +97,7 @@ function update() {
     }
   });
   score += speed;
+  speedScale = 0.7 + score / 1000;
 }
 
 function draw() {
@@ -109,6 +127,13 @@ function draw() {
   ctx.fillStyle = '#fff';
   ctx.fillText('Score: ' + Math.floor(score/10), 10, 20);
 
+  if (counting) {
+    ctx.font = '48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(countdown > 0 ? countdown : 'Start!', w/2, h/2);
+    ctx.textAlign = 'left';
+  }
+
   if (gameOver) {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
@@ -118,12 +143,12 @@ function draw() {
 }
 
 function loop() {
-  update();
+  if (!counting) update();
   draw();
   if (!gameOver) requestAnimationFrame(loop);
 }
 
-loop();
+reset();
 </script>
 </body>
 </html>
