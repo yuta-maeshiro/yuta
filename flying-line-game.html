@@ -18,10 +18,10 @@ const w = canvas.width, h = canvas.height;
 let path = [];
 let obstacles = [];
 const player = { x:60, y:h/2, vy:0 };
-const baseSpeed = 2;
-let speedScale = 0.7;
-const gravity = 0.3;
-const lift = 0.6;
+const baseSpeed = 1.5;
+let speedScale = 0.6;
+const gravity = 0.2;
+const lift = 0.4;
 const obstacleInterval = 160;
 const obstacleWidth = 40;
 const gapHeight = 100;
@@ -54,7 +54,7 @@ function reset() {
   score = 0;
   distSinceLast = 0;
   gameOver = false;
-  speedScale = 0.7;
+  speedScale = 0.6;
   countdown = 3;
   counting = true;
   clearInterval(countdownTimer);
@@ -76,7 +76,7 @@ function spawnObstacle() {
 function update() {
   if (gameOver) return;
   if (pressing) player.vy -= lift; else player.vy += gravity;
-  player.vy = Math.max(Math.min(player.vy, 5), -5);
+  player.vy = Math.max(Math.min(player.vy, 3.5), -3.5);
   player.y += player.vy;
 
   const speed = baseSpeed * speedScale;
@@ -97,7 +97,7 @@ function update() {
     }
   });
   score += speed;
-  speedScale = 0.7 + score / 1000;
+  speedScale = 0.6 + score / 1000;
 }
 
 function draw() {
