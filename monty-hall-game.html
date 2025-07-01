@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>モンティホールゲーム</title>
+<style>
+  body { font-family: sans-serif; text-align: center; margin-top: 30px; }
+  #doors button { width: 80px; height: 120px; margin: 10px; font-size: 1.2em; }
+  #actions button { margin: 5px 10px; padding: 5px 15px; }
+  #stats { margin-top: 20px; }
+</style>
+</head>
+<body>
+<h1>モンティホールゲーム</h1>
+<div id="doors">
+  <button data-door="0">ドア1</button>
+  <button data-door="1">ドア2</button>
+  <button data-door="2">ドア3</button>
+</div>
+<div id="message"></div>
+<div id="actions" style="display:none;">
+  <button id="switch">交換する</button>
+  <button id="stay">そのまま</button>
+</div>
+<button id="reset" style="display:none;">もう一度</button>
+<div id="stats">
+  <h3>成績</h3>
+  <div>あたり: <span id="win-count">0</span> 回</div>
+  <div>はずれ: <span id="lose-count">0</span> 回</div>
+  <div>あたり確率: <span id="win-rate">0%</span></div>
+  <h4>選択別</h4>
+  <div>変えた場合: あたり <span id="switch-win">0</span> 回、はずれ <span id="switch-lose">0</span> 回 (<span id="switch-rate">0%</span>)</div>
+  <div>変えなかった場合: あたり <span id="stay-win">0</span> 回、はずれ <span id="stay-lose">0</span> 回 (<span id="stay-rate">0%</span>)</div>
+</div>
+<script>
+const doorButtons = document.querySelectorAll('#doors button');
+const messageDiv = document.getElementById('message');
+const actionsDiv = document.getElementById('actions');
+const switchBtn = document.getElementById('switch');
+const stayBtn = document.getElementById('stay');
+const resetBtn = document.getElementById('reset');
+let prizeDoor, firstChoice, openedDoor;
+let wins=0, losses=0, swWins=0, swLosses=0, stWins=0, stLosses=0;
+
+function setup() {
+  prizeDoor = Math.floor(Math.random()*3);
+  firstChoice = null;
+  openedDoor = null;
+  messageDiv.textContent = 'ドアを1つ選んでください';
+  actionsDiv.style.display = 'none';
+  resetBtn.style.display = 'none';
+  doorButtons.forEach(btn => {
+    btn.disabled = false;
+    btn.textContent = 'ドア' + (parseInt(btn.dataset.door)+1);
+  });
+}
+
+function updateStats() {
+  const total = wins + losses;
+  const winRate = total ? (wins/total*100).toFixed(1) : 0;
+  document.getElementById('win-count').textContent = wins;
+  document.getElementById('lose-count').textContent = losses;
+  document.getElementById('win-rate').textContent = winRate + '%';
+  const swTotal = swWins + swLosses;
+  const stTotal = stWins + stLosses;
+  const swRate = swTotal ? (swWins/swTotal*100).toFixed(1) : 0;
+  const stRate = stTotal ? (stWins/stTotal*100).toFixed(1) : 0;
+  document.getElementById('switch-win').textContent = swWins;
+  document.getElementById('switch-lose').textContent = swLosses;
+  document.getElementById('switch-rate').textContent = swRate + '%';
+  document.getElementById('stay-win').textContent = stWins;
+  document.getElementById('stay-lose').textContent = stLosses;
+  document.getElementById('stay-rate').textContent = stRate + '%';
+}
+
+function chooseDoor(e) {
+  if (firstChoice !== null) return;
+  firstChoice = parseInt(e.target.dataset.door);
+  const options = [0,1,2].filter(d => d !== firstChoice && d !== prizeDoor);
+  openedDoor = options[Math.floor(Math.random()*options.length)];
+  doorButtons[openedDoor].textContent = 'ハズレ';
+  doorButtons[openedDoor].disabled = true;
+  messageDiv.textContent = 'このドアはハズレです。交換しますか？';
+  actionsDiv.style.display = 'block';
+}
+
+function finish(switchDoor) {
+  let finalChoice = switchDoor ? [0,1,2].find(d => d !== firstChoice && d !== openedDoor) : firstChoice;
+  doorButtons.forEach((btn, idx) => {
+    btn.textContent = idx === prizeDoor ? 'あたり' : 'ハズレ';
+    btn.disabled = true;
+  });
+  actionsDiv.style.display = 'none';
+  resetBtn.style.display = 'inline';
+  const win = finalChoice === prizeDoor;
+  if (win) { wins++; messageDiv.textContent = 'あたり！'; }
+  else { losses++; messageDiv.textContent = 'はずれ'; }
+  if (switchDoor) {
+    if (win) swWins++; else swLosses++;
+  } else {
+    if (win) stWins++; else stLosses++;
+  }
+  updateStats();
+}
+
+switchBtn.onclick = () => finish(true);
+stayBtn.onclick = () => finish(false);
+resetBtn.onclick = setup;
+doorButtons.forEach(btn => btn.addEventListener('click', chooseDoor));
+setup();
+</script>
+</body>
+</html>
